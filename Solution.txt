@@ -1,0 +1,162 @@
+Задачи,выполненные в виде bash-скриптов.
+Пояснения указаны либо в "echo", либо отдельно перед скриптом
+Пояснение ко всем скриптам:
+2>/dev/null - исключение ошибок из вывода
+Для использования скрипта нужно для начала сделать его исполняемым - chmod +x <имя_скрипта>
+#!/bin/bash - шебанг для определения файла как бэш скрипта
+Скрипты для заданий по ubuntu сделаны для ubuntu без arch аналогов(у меня дистрибутив линукс на основе arch - работоспособность теоретическая, вместо pacman - apt/dpkg)
+
+1.
+#!/bin/bash
+ps -C httpd -C apache2 -o pid,%cpu,%mem,time,comm --sort=-%cpu 2>/dev/null
+
+2.
+#!/bin/bash
+free -h
+echo "free = полностью неиспользуемая память"
+echo "available = память, доступная для новых приложений"
+
+3.
+#!/bin/bash
+ps -u ivan -o pid,%cpu,time --sort=-%cpu 2>/dev/null | head -6
+echo "TIME+ важнее %CPU, потому что %CPU может постоянно меняться, а время показывает более стабильную и полную характеристику"
+
+4.
+#!/bin/bash
+lsof -p 1234
+echo "Конфигурационные файлы:"
+lsof -p 1234 2>/dev/null | grep -E '\.conf'
+
+5.
+#!/bin/bash
+sudo apt update
+apt list --upgradable
+sudo apt upgrade
+
+6.
+#!/bin/bash
+dpkg -L nginx
+echo "Основной конфигурационный файл"
+dpkg -L nginx 2>/dev/null | grep 'nginx.conf$'
+
+7.
+#!/bin/bash
+man grep | grep -A1 "Ignore case" | head -3
+echo "Ключ: -i"
+
+8.
+#!/bin/bash
+lscpu | grep -E "Model name|^CPU\(s\)|Thread|Core"
+echo "Ядер всего: $(lscpu | grep 'Ядер на сокет' | awk '{print $4}')"
+echo "Потоков всего: $(lscpu | grep '^CPU(s)' | awk '{print $2}')"
+
+9. Для первой команды - нужны рут права, для второй - нет:
+#!/bin/bash
+if [ "$EUID" -eq 0 ]; then
+    iotop -b -n 1
+else
+    echo "Без root-достура:"
+    iostat -x 1 3
+fi
+
+10.Нужен sudo для выполнения:
+#!/bin/bash
+echo "30 2 * * * /opt/backup.sh >> /var/log/backup.log 2>&1" | crontab -
+echo "Добавлено в crontab:"
+crontab -l
+echo "Лог: /var/log/backup.log"
+echo "Рабочая директория - /"
+
+11. Нужен sudo для выполнения:
+#!/bin/bash
+sudo systemctl restart nginx
+systemctl is-active nginx && echo "nginx работает" || echo "Ошибка запуска!"
+systemctl status nginx --no-pager
+
+12.
+#!/bin/bash
+env
+echo "PATH = $PATH"
+echo "В cron окружение минимально: нет команд .bashrc, .profile и др. . Доступны только /bin и /usr/bin - крон  не видит больше"
+
+13.
+#!/bin/bash
+sudo strace -p 5678 2>&1 | tail -20
+echo "Состояние D - ждёт ввода-вывода"
+
+14.
+#!/bin/bash
+free -h
+echo "free - не занятая ничем память"
+echo "available - доступная память для приложений"
+
+15.crontab -l - проверка всех задач, 9-18 - часы работы, */30 - раз во сколько минут напоминать, 1-5 - будние дни: с первого по пятый
+#!/bin/bash
+(crontab -l; echo "*/30 9-18 * * 1-5 /opt/scripts/clean.sh") | crontab -
+
+16. Проверка и включение/выключение вручную
+#!/bin/bash
+free -h
+echo "Доступно RAM: $(free -h | awk '/Mem:/{print $7}')"
+read -p "Отключить swap? (y/N) " answer
+if [ "$answer" = "y" ]; then
+    sudo swapoff -a && echo "Swap отключён" && free -h
+    read -p "Включить обратно? (y/N) " ans2
+    [ "$ans2" = "y" ] && sudo swapon -a && echo "Swap включён" && free -h
+fi
+
+17. Скрипт для показа истории:
+#!/bin/bash
+echo "Установки/обновления за 7 дней:"
+grep -E "install|upgrade" /var/log/dpkg.log | grep -E "$(date -d '7 days ago' +%Y-%m-%d)|$(date +%Y-%m-%d)"
+echo "---Вчерашние обновления:---"
+grep "upgrade" /var/log/dpkg.log | grep "$(date -d 'yesterday' +%Y-%m-%d)";
+echo "команда для точечного отката пакета: sudo apt install <имя_пакета>=<версия>"
+
+18.
+#!/bin/bash
+sudo atop -w /var/log/atop/atop_$(date +%Y%m%d) 5 &
+echo "atop запущен, пишет в /var/log/atop/"
+echo "Просмотр вчерашнего: atop -r /var/log/atop/atop_YYYYMMDD"
+
+19.
+#!/bin/bash
+read -p "путь к скрипту: " script
+[ -f "$script" ] && strace -c "$script" || echo "Такого не существует"
+
+20.
+#!/bin/bash
+echo "PID   Количество FD"
+lsof -w 2>/dev/null | awk '{print $2}' | sort -n | uniq -c | sort -rn | head -6 | tail -5
+echo "Утечка FD опасна - процесс не сможет открывать новые файлы/сокеты"
+
+21.
+#!/bin/bash
+sudo systemctl enable postgresql
+echo "Статус автозагрузки:"
+systemctl is-enabled postgresql
+echo "enable - добавить в автозагрузку, start - запустить сейчас"
+
+22.
+#!/bin/bash
+find / -name "*.conf" -mtime -2 -exec ls -lS {} + 2>/dev/null
+
+23.
+#!/bin/bash
+grep -rl "authentication failure" /var/log/ 2>/dev/null
+echo "Количество совпадений по файлам"
+grep -rc "authentication failure" /var/log/ 2>/dev/null | grep -v ":0$"
+
+24.
+#!/bin/bash
+df -h /var/lib/mysql /backup 2>/dev/null
+echo "df - показывает занятость всей файловой системы, du — только конкретного каталога"
+
+25.
+#!/bin/bash
+echo "Load Average:"
+uptime
+echo "Топ 3 по CPU:"
+top -b -n 1 -o %CPU | head -10 | grep -E "PID|^ *[0-9]"
+echo "Топ 3 по памяти:"
+top -b -n 1 -o %MEM | head -10 | grep -E "PID|^ *[0-9]"
