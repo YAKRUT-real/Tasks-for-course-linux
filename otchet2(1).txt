@@ -1,0 +1,206 @@
+Задания выполнены в виде bash-скриптов, комментарии в виде:
+1) echo "комментарий"
+2) непосредственно после условия задания
+
+1. требуется создать резервную копию директории
+/home/user/documents в архив docs_backup.tar.gz со сжатием.
+
+#!/bin/bash
+tar -czf docs_backup.tar.gz /home/user/documents
+tar -tzf docs_backup.tar.gz
+
+2. в компанию пришел новый сотрудник. Нужно создать пользователя
+ivanov с домашним каталогом и комментарием "Ivan_Ivanov"
+
+#!/bin/bash
+sudo useradd -m -c "Ivan_Ivanov" -s /bin/bash -e 2026-12-31 ivanov
+passwd ivanov
+ls -ld /home/ivanov
+
+3.для проекта нужно создать новую группу developers и добавить в нее
+пользователей dev1 и dev2.
+
+#для_команд_нужен_sudo
+
+#!/bin/bash
+groupadd developers
+usermod -aG developers dev1
+usermod -aG developers dev2
+echo "информация о группе после добавления девов:"
+getent group developers
+gpasswd -d dev2 developers
+echo "информация о группе после удаления второго:"
+getent group developers
+groupadd -g 1500 vip
+usermod -aG vip dev3
+getent group vip
+
+4. исполняемый скрипт deploy.sh должен быть доступен для
+выполнения только владельцу (user), а чтение разрешить всем.
+
+#сначала-числовой,потом-буквенный.Сразу_же
+
+chmod 744 deploy.sh
+chmod u=rwx,go=r,  deploy.sh
+
+chmod 754 deploy.sh
+chmod g+x deploy.sh
+
+chmod 751 deploy.sh
+chmod o=x deploy.sh
+
+chmod 750 deploy.sh
+chmod u=rwx,g=rx,o= deploy.sh
+
+5. нужно переместить все файлы с расширением .log из текущей
+директории в каталог logs/.
+
+mkdir -p /logs
+shopt -s nullglob; mv *.log /logs/ 2>/dev/null
+ls -la /logs/
+
+6. администратору нужно переключиться на пользователя postgres для управления базой данных, загрузив все переменные окружения этого пользователя.
+
+#для_команд_нужен_sudo
+
+#!/bin/bash
+su - postgres
+echo "Пользователь: $(whoami), Домашний каталог: $HOME"
+sudo -u postgres psql --version
+exit
+whoami
+echo "su postgres - сохраняет старое окружение, su - postgres - полное переключение с загрузкой окружения целевого пользователя"
+
+7. нужно проверить, к каким группам принадлежит текущий пользователь.
+
+#!/bin/bash
+id
+id -Gn
+groups root
+id -g
+
+8.из файла access.log нужно извлечь только IP-адреса.
+
+#!/bin/bash
+#команды_без_sudo
+
+#!/bin/bash
+awk '{print $1}' access.log
+awk '{print $1}' access.log | sort | uniq -c
+awk '{print $1}' access.log | sort -u
+awk '$9 == 200 {print $1}' access.log
+
+9. требуется подсчитать общее количество строк во всех файлах .txt в
+текущей директории.
+
+#!/bin/bash
+mkdir -p test_subdir
+echo "line1" > file1.txt
+echo "line2" > file2.txt
+echo "line3" > test_subdir/file3.txt
+cat *.txt 2>/dev/null | wc -l
+find . -name "*.txt" -type f -exec cat {} + | wc -l
+cat *.txt 2>/dev/null | wc
+
+10. в конфигурационном файле нужно найти все строки, содержащие слово "Server_Name", игнорируя регистр.
+
+#!/bin/bash
+grep -i "Server_Name" config.txt
+grep -in "Server_Name" config.txt
+grep -in -e "Server_Name" config.txt | grep -in "conf"
+grep -vi "Server_Name" config.txt
+grep -ic "Server_Name" config.txt
+
+11. Ситуация: нужно просмотреть содержимое файла test.txt с нумерацией строк.
+
+#!/bin/bash
+cat -b test.txt
+less -N test.txt
+head -n 10 test.txt | cat -n
+tail -n 5 test.txt | cat -n
+
+12. Ситуация: требуется получить текущую дату и время в формате "ГГГГ-ММ-ДД ЧЧ:ММ:СС".
+
+#!/bin/bash
+date "+%Y-%m-%d %H:%M:%S"
+date "+%Y"
+date -d "7 days ago" "+%d.%m.%Y, %A"
+
+13. требуется создать файл test.txt с одной строкой "Welcome 2 linux world!".
+
+#!/bin/bash
+echo "Welcome 2 linux world!" > test.txt
+echo "Hello again" >> test.txt
+ls -la > listing.txt
+
+touch empty1.txt
+
+> empty2.txt
+
+echo -n "" > empty3.txt
+
+14. в файле config.txt нужно заменить все вхождения "dev_debug=true" на "dev_debug=false".
+
+#!/bin/bash
+sed -i '0,/debug=true/s/debug=true/debug=false/' config.txt
+sed -i '/debug=true/d' config.txt
+sed -n 's/debug=true/debug=false/p' config.txt
+
+15. требуется найти информацию о пользователе nginx в системе.
+
+# для выполнения необходим sudo
+
+#!/bin/bash
+grep "^nginx:" /etc/passwd
+grep "^nginx:" /etc/passwd | awk -F: '{print "Имя: " $1 ", UID: " $3 ", GID: " $4 ", Домой: " $6}'
+
+grep -q "^nginx:" /etc/passwd && echo "exists" || echo "not found"
+
+grep ": /sbin/nologin$" /etc/passwd | cut -d: -f1
+
+16. требуется разрешить пользователю ivan выполнять команду sudo
+systemctl restart nginx без ввода пароля.
+
+#!/bin/bash
+echo "ivan ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart nginx"
+echo "ivan ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart nginx, /usr/bin/systemctl status nginx"
+echo "%webadmin ALL=(ALL) NOPASSWD: /usr/bin/*"
+visudo -c
+echo "ivan ALL=(ALL) ALL, !/usr/bin/reboot"
+
+17. сервер работает нестабильно. Нужно просмотреть системные логи за
+последний час на наличие ошибок.
+
+#для скрипта нужен sudo
+
+#!/bin/bash
+journalctl
+
+journalctl --since "1 hour ago" -p err уровень error
+
+journalctl -k --since "30 minutes ago"
+
+journalctl --since "1 hour ago" -p err > errors.log
+
+journalctl -u nginx --since "1 hour ago"
+
+18. нужно создать жесткую ссылку на файл original.txt с именем hardlink.txt.
+
+#!/bin/bash
+ln original.txt hardlink.txt
+
+ls -li original.txt hardlink.txt
+
+echo "new" >> original.txt; cat hardlink.txt
+
+rm original.txt; cat hardlink.txt
+
+19. для директории /shared нужно установить права так, чтобы все пользователи группы developers могли создавать и удалять файлы в ней.
+
+# необходим sudo для выполнения
+
+#!/bin/bash
+chown :developers /shared; chmod 770 /shared
+chmod +t /shared
+sudo -u user1 touch /shared/file1.txt; sudo -u user2 rm /shared/file1.txt
+chmod 770 /shared
